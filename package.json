@@ -29,7 +29,8 @@
     "test:node": "mocha -r ts-node/register --reporter spec tests/**/*.spec.ts",
     "test": "npm run build && npm run lint && npm run test:node",
     "test:fast": "npm run build && npm run test:node",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "start": "node build/index.js"
   },
   "devDependencies": {
     "@balena/lint": "^5.4.2",

@@ -1,11 +1,11 @@
-export interface ImplementMe {
-	myFunc(): Promise<string>;
-}
+import * as fs from 'fs';
 
-const moo = 1;
+const TEST_DATA =
+	'tests/data/b3499e923745022c1d38cca770226567_diagnostics_2022.05.02_16.04.10+0000.txt';
 
-export class ImplementClass implements ImplementMe {
-	public async myFunc() {
-		return `I need implementing! ${moo}`;
-	}
+try {
+	const data = fs.readFileSync(TEST_DATA, 'utf8');
+	console.log(data);
+} catch (err) {
+	console.error(err);
 }
