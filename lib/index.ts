@@ -1,49 +1,99 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as _ from 'lodash';
 
 const IN_FILE = 'tests/data/diagnostics.txt';
 const OUT_FILE = 'out/diagnostics.json';
 
-const RE_DIAGNOSE_VERSION = /--- diagnose ([0-9\.]+) ---/;
 const RE_STDOUT = /STDOUT:(.*)STDERR:/s;
 const RE_STDERR = /STDOUT:.*STDERR:(.*)/s;
 
-const RE_COMMANDS = /(--- ([\s\S]+?) ---)((?:\n(?:[^-\n].*)?)*)/g;
-const RE_TRIM = /\n{2,}/g;
-
-const out = {} as any;
+let out = {} as any;
 
 try {
 	const data = fs.readFileSync(IN_FILE, 'utf8');
-	out.diagnose_version = data.match(RE_DIAGNOSE_VERSION)?.pop();
 	const stdout = data.match(RE_STDOUT)?.pop();
 	const stderr = data.match(RE_STDERR)?.pop();
 
-	out.commands = [];
-
-	let matches = stdout?.matchAll(RE_COMMANDS) || [];
-
-	for (const match of matches) {
-		out.commands.push({
-			command: match[2],
-			stdout: match[3].replace(RE_TRIM, ''),
-		});
-	}
-
-	matches = stderr?.matchAll(RE_COMMANDS) || [];
-
-	for (const match of matches) {
-		out.commands.find((item: any) => item.command === match[2]).stderr =
-			match[3].replace(RE_TRIM, '');
+	if (stdout && stderr) {
+		const merged = _.merge(
+			_.keyBy(parseStdout(stdout), 'command'),
+			_.keyBy(parseStderr(stderr), 'command'),
+		);
+		out = _.values(merged);
 	}
 } catch (err) {
 	console.error(err);
 }
 
-console.debug(out);
-
 if (!fs.existsSync(path.dirname(OUT_FILE))) {
 	fs.mkdirSync(path.dirname(OUT_FILE));
 }
 
+console.debug(out);
+
 fs.writeFileSync(OUT_FILE, JSON.stringify(out, null, 2));
+
+function parseStdout(data: string) {
+	const regex = {
+		command: /^--- ([\s\S]+?) ---*$/,
+		timestamp: /^[ :0-9\.+-]+$/,
+		real: /^real[\s]+(.+)$/,
+		user: /^user[\s]+(.+)$/,
+		sys: /^sys[\s]+(.+)$/,
+	};
+
+	const lines = data.split(/[\r\n]+/);
+
+	const value = [] as any;
+	let obj = {} as any;
+
+	lines.forEach((line) => {
+		if (line.length === 0) {
+			return;
+		} else if ((!obj.time || obj.sys) && regex.command.test(line)) {
+			if (obj !== {}) {
+				value.push(obj);
+				obj = {};
+			}
+			obj.command = line.match(regex.command)?.pop();
+		} else if (obj.command && regex.timestamp.test(line)) {
+			obj.time = line.match(regex.timestamp)?.pop();
+		} else if (obj.command && obj.time && regex.real.test(line)) {
+			obj.real = line.match(regex.real)?.pop();
+		} else if (obj.command && obj.time && regex.user.test(line)) {
+			obj.user = line.match(regex.user)?.pop();
+		} else if (obj.command && obj.time && regex.sys.test(line)) {
+			obj.sys = line.match(regex.sys)?.pop();
+		} else if (obj.command && obj.time && !obj.real) {
+			obj.stdout = [obj.stdout, line].filter((item) => item).join('\n');
+		}
+	});
+	return value;
+}
+
+function parseStderr(data: string) {
+	const regex = {
+		command: /^--- ([\s\S]+?) ---*$/,
+	};
+
+	const lines = data.split(/[\r\n]+/);
+
+	const value = [] as any;
+	let obj = {} as any;
+
+	lines.forEach((line) => {
+		if (line.length === 0) {
+			return;
+		} else if (regex.command.test(line)) {
+			if (obj !== {}) {
+				value.push(obj);
+				obj = {};
+			}
+			obj.command = line.match(regex.command)?.pop();
+		} else if (obj.command) {
+			obj.stderr = [obj.stderr, line].filter((item) => item).join('\n');
+		}
+	});
+	return value;
+}
