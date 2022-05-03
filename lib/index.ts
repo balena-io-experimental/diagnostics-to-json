@@ -37,10 +37,10 @@ fs.writeFileSync(OUT_FILE, JSON.stringify(out, null, 2));
 function parseStdout(data: string) {
 	const regex = {
 		command: /^--- ([\s\S]+?) ---*$/,
-		timestamp: /^[ :0-9\.+-]+$/,
-		real: /^real[\s]+(.+)$/,
-		user: /^user[\s]+(.+)$/,
-		sys: /^sys[\s]+(.+)$/,
+		timestamp: /^[\s:0-9\.+-]+$/,
+		real: /real[\s]+([\s0-9\.smh]+)$/,
+		user: /^user[\s]+([\s0-9\.smh]+)$/,
+		sys: /^sys[\s]+([\s0-9\.smh]+)$/,
 	};
 
 	const lines = data.split(/[\r\n]+/);
@@ -61,9 +61,9 @@ function parseStdout(data: string) {
 			obj.time = line.match(regex.timestamp)?.pop();
 		} else if (obj.command && obj.time && regex.real.test(line)) {
 			obj.real = line.match(regex.real)?.pop();
-		} else if (obj.command && obj.time && regex.user.test(line)) {
+		} else if (obj.command && obj.real && regex.user.test(line)) {
 			obj.user = line.match(regex.user)?.pop();
-		} else if (obj.command && obj.time && regex.sys.test(line)) {
+		} else if (obj.command && obj.user && regex.sys.test(line)) {
 			obj.sys = line.match(regex.sys)?.pop();
 		} else if (obj.command && obj.time && !obj.real) {
 			obj.stdout = [obj.stdout, line].filter((item) => item).join('\n');
