@@ -16,11 +16,10 @@ try {
 	const stderr = data.match(RE_STDERR)?.pop();
 
 	if (stdout && stderr) {
-		const merged = _.merge(
+		out = _.merge(
 			_.keyBy(parseStdout(stdout), 'command'),
 			_.keyBy(parseStderr(stderr), 'command'),
 		);
-		out = _.values(merged);
 	}
 } catch (err) {
 	console.error(err);
