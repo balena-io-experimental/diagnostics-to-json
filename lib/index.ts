@@ -18,6 +18,7 @@ try {
 	if (stdout) {
 		out = _.keyBy(parseStdout(stdout), 'command');
 	}
+
 	if (stderr) {
 		out = _.merge(out, _.keyBy(parseStderr(stderr), 'command'));
 	}
@@ -35,7 +36,8 @@ fs.writeFileSync(OUT_FILE, JSON.stringify(out, null, 2));
 
 function parseStdout(data: string) {
 	const regex = {
-		command: /^--- ([\s\S]+?) ---*$/,
+		category: /^--- echo === ([A-Z]+) === ---$/,
+		command: /^--- ([\s\S]+?) ---$/,
 		timestamp: /^[\s:0-9\.+-]+$/,
 		real: /real[\s]+([\s0-9\.smh]+)$/,
 		user: /^user[\s]+([\s0-9\.smh]+)$/,
@@ -46,15 +48,23 @@ function parseStdout(data: string) {
 
 	const value = [] as any;
 	let obj = {} as any;
+	let category: string | undefined;
 
 	lines.forEach((line) => {
 		if (line.length === 0) {
 			return;
-		} else if ((!obj.time || obj.sys) && regex.command.test(line)) {
-			if (obj !== {}) {
+		} else if (regex.category.test(line)) {
+			category = line.match(regex.category)?.pop();
+		} else if (
+			(!obj.stdout || obj.sys) &&
+			category &&
+			regex.command.test(line)
+		) {
+			if (obj.sys) {
 				value.push(obj);
 				obj = {};
 			}
+			obj.category = category;
 			obj.command = line.match(regex.command)?.pop();
 		} else if (obj.command && regex.timestamp.test(line)) {
 			obj.time = line.match(regex.timestamp)?.pop();
@@ -73,7 +83,8 @@ function parseStdout(data: string) {
 
 function parseStderr(data: string) {
 	const regex = {
-		command: /^--- ([\s\S]+?) ---*$/,
+		category: /^--- echo === ([A-Z]+) === ---$/,
+		command: /^--- ([\s\S]+?) ---$/,
 	};
 
 	const lines = data.split(/[\r\n]+/);
@@ -84,8 +95,10 @@ function parseStderr(data: string) {
 	lines.forEach((line) => {
 		if (line.length === 0) {
 			return;
+		} else if (regex.category.test(line)) {
+			return;
 		} else if (regex.command.test(line)) {
-			if (obj !== {}) {
+			if (obj.stderr) {
 				value.push(obj);
 				obj = {};
 			}
