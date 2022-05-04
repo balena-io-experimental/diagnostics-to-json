@@ -65,7 +65,18 @@ function parseStdout(data: string) {
 				obj = {};
 			}
 			obj.category = category;
-			obj.command = line.match(regex.command)?.pop();
+			let command = line.match(regex.command)?.pop();
+			if (command && category === 'SUPERVISOR') {
+				let match = command.match(/^balena exec ([^\s]+) /);
+				if (match && match[1]) {
+					command = command.replace(match[1], '{id}');
+				}
+				match = command.match(/^balena logs ([^\s]+)$/);
+				if (match && match[1]) {
+					command = command.replace(match[1], '{id}');
+				}
+			}
+			obj.command = command;
 		} else if (obj.command && regex.timestamp.test(line)) {
 			obj.time = line.match(regex.timestamp)?.pop();
 		} else if (obj.command && obj.time && regex.real.test(line)) {
