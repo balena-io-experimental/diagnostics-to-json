@@ -5,21 +5,21 @@ import * as _ from 'lodash';
 const IN_FILE = 'tests/data/diagnostics.txt';
 const OUT_FILE = 'out/diagnostics.json';
 
-const RE_STDOUT = /STDOUT:(.*)STDERR:/s;
+const RE_STDOUT = /STDOUT:(.*)(?:STDERR:|$)/s;
 const RE_STDERR = /STDOUT:.*STDERR:(.*)/s;
 
 let out = {} as any;
 
 try {
 	const data = fs.readFileSync(IN_FILE, 'utf8');
-	const stdout = data.match(RE_STDOUT)?.pop();
-	const stderr = data.match(RE_STDERR)?.pop();
+	const stdout = data.match(RE_STDOUT)?.[1];
+	const stderr = data.match(RE_STDERR)?.[1];
 
-	if (stdout && stderr) {
-		out = _.merge(
-			_.keyBy(parseStdout(stdout), 'command'),
-			_.keyBy(parseStderr(stderr), 'command'),
-		);
+	if (stdout) {
+		out = _.keyBy(parseStdout(stdout), 'command');
+	}
+	if (stderr) {
+		out = _.merge(out, _.keyBy(parseStderr(stderr), 'command'));
 	}
 } catch (err) {
 	console.error(err);
